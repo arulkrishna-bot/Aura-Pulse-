@@ -1,5 +1,4 @@
-STREAMING_CHUNK:Configuring fail-safe GitHub Actions Android APK workflow
-​name: Build Android APK
+name: Build Android APK
 ​on:
 push:
 branches:
@@ -10,7 +9,7 @@ workflow_dispatch:
 build:
 name: Build Android APK
 runs-on: ubuntu-latest
-steps:
+​steps:
 - name: Checkout Repository
 uses: actions/checkout@v4
 ​- name: Setup Java JDK 17
@@ -21,30 +20,29 @@ java-version: '17'
 ​- name: Setup Node.js 20
 uses: actions/setup-node@v4
 with:
-node-version: 20
-​- name: Initialize Web Directory
+node-version: '20'
+​- name: Prepare Web Directory
 run: |
 mkdir -p www
 cp index.html www/index.html
-​- name: Setup Dependencies
+​- name: Install Capacitor Core
 run: |
 npm init -y
 npm install @capacitor/core@6.1.2 @capacitor/cli@6.1.2 @capacitor/android@6.1.2
-​- name: Configure Capacitor
+​- name: Initialize Capacitor Android Project
 run: |
 npx cap init "AuraPulse Studio" "com.arulkrish.aurapulse" --web-dir www
 npx cap add android
-​- name: Configure Android Permissions
+​- name: Inject Background Media Permissions
 run: |
-echo "Configuring Android Permissions..."
 sed -i '/<application/i \    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />' android/app/src/main/AndroidManifest.xml || true
 npx cap sync android
-​- name: Build Debug APK
+​- name: Compile Debug APK
+working-directory: ./android
 run: |
-cd android
 chmod +x gradlew
 ./gradlew assembleDebug --no-daemon
-​- name: Upload APK Artifact
+​- name: Upload Finished APK
 uses: actions/upload-artifact@v4
 with:
 name: AuraPulse-Studio-Pro-APK
