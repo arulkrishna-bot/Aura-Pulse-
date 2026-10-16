@@ -15,33 +15,25 @@ uses: actions/checkout@v4
 ​- name: Setup Java JDK 17
 uses: actions/setup-java@v4
 with:
-distribution: 'temurin'
+distribution: temurin
 java-version: '17'
 ​- name: Setup Node.js 20
 uses: actions/setup-node@v4
 with:
 node-version: '20'
-​- name: Prepare Web Directory
+​- name: Create Web Asset Directory
+run: mkdir -p www && cp index.html www/index.html
+​- name: Initialize Project and Add Capacitor
+run: npm init -y && npm install @capacitor/core@6.1.2 @capacitor/cli@6.1.2 @capacitor/android@6.1.2
+​- name: Add Android Native Platform
+run: npx cap init "AuraPulse Studio" "com.arulkrish.aurapulse" --web-dir www && npx cap add android
+​- name: Add Android Background Media Permissions
 run: |
-mkdir -p www
-cp index.html www/index.html
-​- name: Install Capacitor Core
-run: |
-npm init -y
-npm install @capacitor/core@6.1.2 @capacitor/cli@6.1.2 @capacitor/android@6.1.2
-​- name: Initialize Capacitor Android Project
-run: |
-npx cap init "AuraPulse Studio" "com.arulkrish.aurapulse" --web-dir www
-npx cap add android
-​- name: Inject Background Media Permissions
-run: |
-sed -i '/<application/i \    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />' android/app/src/main/AndroidManifest.xml || true
+sed -i '/<application/i \    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />' android/app/src/main/AndroidManifest.xml
 npx cap sync android
 ​- name: Compile Debug APK
 working-directory: ./android
-run: |
-chmod +x gradlew
-./gradlew assembleDebug --no-daemon
+run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
 ​- name: Upload Finished APK
 uses: actions/upload-artifact@v4
 with:
