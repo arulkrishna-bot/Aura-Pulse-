@@ -25,19 +25,66 @@ java-version: 17
 uses: android-actions/setup-android@v3
 ​- name: Build Android App with Background Audio Permissions
 run: |
-mkdir -p www && cp index.html www/
-npm init -y
-npm install @capacitor/core @capacitor/android @capacitor/cli
-npx cap init AuraPulse com.arulkrish.aurapulse --web-dir www
+mkdir -p www
+cp index.html www/index.html
+​# 1. Initialize Capacitor with strict configuration
+cat << 'EOF' > package.json
+{
+"name": "aurapulse-studio",
+"version": "3.8.0",
+"dependencies": {
+"@capacitor/android": "^6.1.2",
+"@capacitor/core": "^6.1.2"
+},
+"devDependencies": {
+"@capacitor/cli": "^6.1.2"
+}
+}
+EOF
+​cat << 'EOF' > capacitor.config.json
+{
+"appId": "com.arulkrish.aurapulse",
+"appName": "AuraPulse Studio",
+"webDir": "www",
+"bundledWebRuntime": false,
+"server": {
+"androidScheme": "https",
+"cleartext": true
+},
+"android": {
+"allowMixedContent": true
+}
+}
+EOF
+​npm install
 npx cap add android
-​# Inject Background Audio & Lock Screen Permissions directly into AndroidManifest.xml
-MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
-sed -i '/</manifest>/i 
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />' $MANIFEST_FILE
+​# 2. Add Background Audio & Lockscreen Wake Permissions cleanly into AndroidManifest.xml
+python3 -c "
+import xml.etree.ElementTree as ET
+manifest_path = 'android/app/src/main/AndroidManifest.xml'
+tree = ET.parse(manifest_path)
+root = tree.getroot()
+​permissions = [
+'android.permission.WAKE_LOCK',
+'android.permission.FOREGROUND_SERVICE',
+'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'
+]
+​for perm in permissions:
+elem = ET.Element('uses-permission', {'android:name': perm})
+root.insert(0, elem)
+​# Add hardware acceleration and audio settings to application tag
+app = root.find('application')
+if app is not None:
+app.set('{http://schemas.android.com/apk/res/android}usesCleartextTraffic', 'true')
+app.set('{http://schemas.android.com/apk/res/android}hardwareAccelerated', 'true')
+​tree.write(manifest_path, encoding='utf-8', xml_declaration=True)
+print('Successfully configured Android Background Audio Permissions')
+"
 ​npx cap sync android
-cd android && chmod +x gradlew && ./gradlew assembleDebug --stacktrace
+​# 3. Build native debug APK using Gradle
+cd android
+chmod +x gradlew
+./gradlew assembleDebug --no-daemon --stacktrace
 ​- name: Upload Clean APK
 uses: actions/upload-artifact@v4
 with:
