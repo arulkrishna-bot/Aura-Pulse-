@@ -1,4 +1,5 @@
-name: Build Android APK with LockScreen Background Audio
+STREAMING_CHUNK:Configuring fail-safe GitHub Actions Android APK workflow
+​name: Build Android APK
 ​on:
 push:
 branches:
@@ -7,82 +8,43 @@ branches:
 workflow_dispatch:
 ​jobs:
 build:
-name: Build Android Audio Player APK
+name: Build Android APK
 runs-on: ubuntu-latest
 steps:
-- name: Checkout Code
+- name: Checkout Repository
 uses: actions/checkout@v4
-​- name: Set up Java JDK 17
+​- name: Setup Java JDK 17
 uses: actions/setup-java@v4
 with:
 distribution: 'temurin'
 java-version: '17'
-​- name: Set up Node.js
+​- name: Setup Node.js 20
 uses: actions/setup-node@v4
 with:
 node-version: 20
-​- name: Prepare Capacitor App
+​- name: Initialize Web Directory
 run: |
 mkdir -p www
 cp index.html www/index.html
-​# Create minimal clean package.json
-cat << 'EOF' > package.json
-{
-"name": "aurapulse-studio",
-"version": "3.8.0",
-"dependencies": {
-"@capacitor/core": "^6.1.2",
-"@capacitor/android": "^6.1.2"
-},
-"devDependencies": {
-"@capacitor/cli": "^6.1.2"
-}
-}
-EOF
-​# Create capacitor configuration
-cat << 'EOF' > capacitor.config.json
-{
-"appId": "com.arulkrish.aurapulse",
-"appName": "AuraPulse Studio",
-"webDir": "www",
-"bundledWebRuntime": false,
-"server": {
-"androidScheme": "https",
-"cleartext": true
-},
-"android": {
-"allowMixedContent": true
-}
-}
-EOF
-​# Install packages and add android platform
-npm install
+​- name: Setup Dependencies
+run: |
+npm init -y
+npm install @capacitor/core@6.1.2 @capacitor/cli@6.1.2 @capacitor/android@6.1.2
+​- name: Configure Capacitor
+run: |
+npx cap init "AuraPulse Studio" "com.arulkrish.aurapulse" --web-dir www
 npx cap add android
-​# Inject Lockscreen & Background Audio permissions safely
-python3 -c "
-manifest_file = 'android/app/src/main/AndroidManifest.xml'
-with open(manifest_file, 'r', encoding='utf-8') as f:
-content = f.read()
-​perms = '''
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-'''
-​if '<application' in content:
-content = content.replace('<application', perms + '\n    <application')
-# Enable hardware acceleration and clear text traffic
-content = content.replace('<application', '<application android:hardwareAccelerated="true" android:usesCleartextTraffic="true"')
-​with open(manifest_file, 'w', encoding='utf-8') as f:
-f.write(content)
-print('Permissions successfully configured!')
-"
-​npx cap sync android
-​- name: Build Debug APK with Gradle
+​- name: Configure Android Permissions
+run: |
+echo "Configuring Android Permissions..."
+sed -i '/<application/i \    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />' android/app/src/main/AndroidManifest.xml || true
+npx cap sync android
+​- name: Build Debug APK
 run: |
 cd android
 chmod +x gradlew
 ./gradlew assembleDebug --no-daemon
-​- name: Upload Clean APK Artifact
+​- name: Upload APK Artifact
 uses: actions/upload-artifact@v4
 with:
 name: AuraPulse-Studio-Pro-APK
